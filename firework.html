@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>满天烟花</title>
+</head>
+<body style="background:black;margin:0;overflow:hidden">
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let fireworks = [];
+let particles = [];
+
+// 增强版烟花类
+class Firework {
+    constructor(isChild=false) {
+        // 初始位置随机化
+        this.x = isChild ? Math.random()*canvas.width : canvas.width/2 + (Math.random()-0.5)*200;
+        this.y = isChild ? Math.random()*canvas.height/2 : canvas.height;
+        // 彩虹色渐变
+        this.baseHue = Math.random()*360;
+        this.color = `hsl(${this.baseHue},100%,50%)`;
+        // 动态速度
+        this.speed = isChild ? 5+Math.random()*8 : 12+Math.random()*6;
+        // 子烟花标记
+        this.isChild = isChild;
+    }
+
+    update() {
+        // 运动轨迹添加随机扰动
+        this.y -= this.speed;
+        this.x += (Math.random()-0.5)*2;
+        
+        // 爆炸条件增强
+        if(this.speed > 0.2) this.speed *= this.isChild ? 0.92 : 0.88;
+        
+        if(this.speed < 1.5) {
+            this.explode();
+            return false;
+        }
+        return true;
+    }
+
+    explode() {
+        // 生成多层级粒子
+        for(let i=0; i<360; i+=18){ // 全角度发射
+            particles.push(new Particle(
+                this.x, this.y,
+                `hsl(${(this.baseHue+i)%360},100%,50%)`, // 色相扩散
+                8,  // 初始速度
+                i*Math.PI/180 // 角度转弧度
+            ));
+        }
+        
+        // 生成次级烟花
+        if(!this.isChild && Math.random()>0.7){
+            for(let j=0;j<3;j++){
+                fireworks.push(new Firework(true));
+            }
+        }
+    }
+
+    draw() {
+        // 添加发光效果
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 4, 0, Math.PI*2);
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+    }
+}
+
+// 增强版粒子类
+class Particle {
+    constructor(x,y,color,speed,angle) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.angle = angle;
+        this.speed = speed;
+        this.friction = 0.93;  // 空气阻力
+        this.gravity = 0.25;   // 重力强度
+        this.alpha = 1;        // 透明度
+        this.decay = 0.015;    // 消失速度
+    }
+
+    update() {
+        // 添加随机运动效果
+        this.speed *= this.friction;
+        this.x += Math.cos(this.angle)*this.speed + (Math.random()-0.5)*2;
+        this.y += Math.sin(this.angle)*this.speed + this.gravity;
+        this.alpha -= this.decay;
+        return this.alpha > 0;
+    }
+
+    draw() {
+        // 渐隐效果
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 2.5, 0, Math.PI*2);
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = this.alpha;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+    }
+}
+
+// 动画循环
+function animate() {
+    // 星空拖影效果
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // 高频生成烟花
+    if(Math.random() < 0.08) { // 提高生成概率
+        fireworks.push(new Firework());
+        if(Math.random()>0.5) fireworks.push(new Firework()); // 双发
+    }
+
+    // 更新所有元素
+    fireworks = fireworks.filter(firework => firework.update());
+    particles = particles.filter(particle => particle.update());
+
+    // 绘制元素
+    fireworks.forEach(f => f.draw());
+    particles.forEach(p => p.draw());
+
+    // 重置阴影效果
+    ctx.shadowColor = 'transparent';
+    ctx.globalAlpha = 1;
+
+    requestAnimationFrame(animate);
+}
+
+// 启动动画
+animate();
+
+// 窗口适应
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+</script>
+</body>
+</html>
